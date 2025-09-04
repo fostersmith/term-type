@@ -13,28 +13,30 @@ enum SessionType {
 	Words,
 }
 
-pub struct Session<'a> {
+pub struct Session {
 	session_type:	SessionType,
 	state: 			SessionState,
-	start_time: 	Instant,
-	duration:		Duration,
-	pub target_text:Vec<&'a str>,
+	start_time: 	Option<Instant>,
+	duration:		Option<Duration>,
+	pub target_text:Vec<String>,
 	pub input: 		Vec<String>,
 }
 
-impl<'a> Session<'a> {
+impl Session {
 	pub fn default() -> Self {
-		Self::from("The quick brown fox jumps over the lazy dog")
+		Self::from("The quick brown fox jumps over the lazy dog".to_string())
 	}
 
-	pub fn from(s: &'a str) -> Self {
-		let target_text: Vec<&str> = s.split(' ').collect();
+	pub fn from(s: String) -> Self {
+		let target_text: Vec<String> = s.split(' ')
+			.map(|s| s.to_string())
+			.collect();
 		
 		Self {
 			session_type:	SessionType::Words,
 			state: 			SessionState::Idle,
-			start_time:		Instant::now(),
-			duration:		Duration::default(),
+			start_time:		None,
+			duration:		None,
 			target_text: 	target_text,
 			input:			vec!["".to_string()],
 		}
@@ -45,14 +47,16 @@ impl<'a> Session<'a> {
 				"Can't start active or ended session!");
 
 		self.state = SessionState::Active;
-		self.start_time = Instant::now();
+		self.start_time = Some(Instant::now());
 	}
 
 	pub fn stop_session(&mut self){
 		assert_eq!(self.state, SessionState::Active, 
 				"Session ended before starting!");
+		
+		let start = self.start_time.expect("Start time was never set!");
 
-		self.duration = self.start_time.elapsed();
+		self.duration = Some(start.elapsed());
 		self.state = SessionState::Finished;
 	}
 
@@ -123,24 +127,33 @@ impl<'a> Session<'a> {
 	pub fn get_age_s(&self) -> Option<f64> {
 		if self.state == SessionState::Idle { return None };
 
-		let duration: Duration = self.start_time.elapsed();
-		Option::from(duration.as_secs_f64())
+		match self.start_time {
+			Some(start) => return Some(start.elapsed().as_secs_f64()),
+			None		=> return None,
+		}
+	}
+
+	pub fn get_final_duration_s(&self) -> Option<f64> {
+		match self.duration {
+			Some(dur) => return Some(dur.as_secs_f64()),
+			None => return None,
+		}
 	}
 
 	pub fn get_input_words(&self) -> Vec<String> {
 		self.input.clone()
 	}
 
-	pub fn get_attempted_words(&self) -> Vec<&str> {
+	pub fn get_attempted_words(&self) -> Vec<String> {
 		let l = self.input.len();
 		let mut words = Vec::with_capacity(l);
 		let target = &self.target_text;
 
 		for i in 0..l{
 			if i < target.len() {
-				words.push(target[i]);
+				words.push(target[i].clone());
 			} else {
-				words.push("");
+				words.push("".to_string());
 			}
 		}
 
@@ -179,8 +192,8 @@ impl SessionStats {
 
 		let mut i = 0;
 		for in_word in input_words {
-			let att_word = attempted_words[i];
-			let (corr, ttl, is_correct) = Self::word_compare(&in_word, &att_word);
+			let att_word = &attempted_words[i];
+			let (corr, ttl, is_correct) = Self::word_compare(&in_word.as_str(), &att_word.as_str());
 			char_corr += corr;
 			char_total += ttl;
 			if is_correct {
@@ -190,7 +203,8 @@ impl SessionStats {
 			i += 1;
 		}
 		
-		let duration_s = session.duration.as_secs_f64();
+		let duration_s = session.get_final_duration_s()
+			.expect("Calculating stats on a session without duration");
 		let duration_min: f64 = duration_s / (60 as f64);
 		
 		let wpm = (word_corr as f32) / (duration_min as f32);
@@ -224,7 +238,7 @@ impl SessionStats {
 		}
 
 		let ttl_chars: i32;
-		if(targ.len() > inp.len()){
+		if targ.len() > inp.len() {
 			ttl_chars = targ.len() as i32;
 		} else {
 			ttl_chars = inp.len() as i32;
@@ -241,20 +255,32 @@ pub enum AppState {
 	Stats,
 }
 
-pub struct App<'a> {
+pub struct App {
 	pub state:			AppState,
 	pub quit:			bool,
-	pub active_session:	Session<'a>,
+	pub active_session:	Session,
 	pub active_stats:	SessionStats,
+	default_text:		Option<String>,
 }
 
-impl<'a> App<'a> {
+impl App {
 	pub fn default() -> Self {
 		Self {
 			state: AppState::Menu,
 			active_session: Session::default(),
 			active_stats: SessionStats::default(),
 			quit: false,
+			default_text: None,
+		}
+	}
+
+	pub fn from_str(default_text: String) -> Self {
+		Self {
+			state: AppState::Menu,
+			active_session: Session::default(),
+			active_stats: SessionStats::default(),
+			quit: false,
+			default_text: Some(default_text),
 		}
 	}
 
@@ -306,7 +332,12 @@ impl<'a> App<'a> {
 
 	// helpers
 	fn open_typing(&mut self) {
-		self.active_session = Session::default();
+		match &self.default_text {
+			Some(target_text) => 
+				self.active_session = Session::from(target_text.clone()),
+			None =>
+				self.active_session = Session::default(),
+		}
 		self.state = AppState::Typing;
 	}
 	fn open_stats(&mut self) {

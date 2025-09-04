@@ -1,21 +1,38 @@
 use std::io;
-
 use std::time::{Instant, Duration};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::DefaultTerminal;
+
+use argh::FromArgs;
 
 mod app;
 mod ui;
 use crate::app::App;
 use crate::ui::draw;
 
-
+/// TermType
+#[derive(FromArgs)]
+struct Cli {
+	/// text to test on
+	#[argh(option)]
+	text: Option<String>,
+}
 
 fn main() -> io::Result<()> {
+	let mut cli: Cli = argh::from_env();
+
     let mut terminal = ratatui::init();
-	let mut app = App::default();
+	let mut app: App;
 	let refresh_wait = Duration::from_millis(250);
+	
+	// Derive Arguments
+	if let Some(target_text) = cli.text.take() {
+		app = App::from_str(target_text);
+	} else {
+		app = App::default();
+	}
+
 	let result = run(&mut app, &mut terminal, refresh_wait);
 	ratatui::restore();
 	result
