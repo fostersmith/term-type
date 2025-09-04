@@ -7,14 +7,7 @@ enum SessionState {
 	Finished,
 }
 
-#[derive(PartialEq, Debug)]
-enum SessionType {
-	Time,
-	Words,
-}
-
 pub struct Session {
-	session_type:	SessionType,
 	state: 			SessionState,
 	start_time: 	Option<Instant>,
 	duration:		Option<Duration>,
@@ -33,7 +26,6 @@ impl Session {
 			.collect();
 		
 		Self {
-			session_type:	SessionType::Words,
 			state: 			SessionState::Idle,
 			start_time:		None,
 			duration:		None,

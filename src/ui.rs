@@ -3,7 +3,7 @@ use std::str::Chars;
 use ratatui::{
 	layout::{Constraint, Layout, Rect},
 	style::{Color, Modifier, Style},
-	text::{self, Span, Line, Text},
+	text::{Span, Line},
 	widgets::{Block, Paragraph},
 	Frame,
 };
@@ -28,13 +28,12 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 	
 	match app.state {
 		AppState::Typing => draw_typing(frame, app, chunks[1]),
-		AppState::Menu => draw_menu(frame, app, chunks[1]),
+		AppState::Menu => draw_menu(frame, chunks[1]),
 		AppState::Stats => draw_stats(frame, app, chunks[1]),
-		_ => {}
 	}
 }
 
-fn draw_menu(frame: &mut Frame, app: &mut App, area: Rect) {
+fn draw_menu(frame: &mut Frame, area: Rect) {
 	let menu_paragraph = Paragraph::new(
 			Line::from("Press Enter to Start Test").centered()
 		)
@@ -50,6 +49,7 @@ fn draw_stats(frame: &mut Frame, app: &mut App, area: Rect) {
 		Line::from(format!("acc: {}%", stats.acc*(100 as f32))),
 		Line::from(format!("words: {}/{}", stats.word_corr, stats.word_total)),
 		Line::from(format!("chars: {}/{}", stats.char_corr, stats.char_total)),
+		Line::from(format!("test duration (s): {}", stats.duration_s)),
 	])
 	.block(Block::bordered());
 	frame.render_widget(stats_paragraph, area);
