@@ -423,15 +423,29 @@ mod app_tests {
 	
 	#[test]
 	fn test_3() {
-		let mut session = Session::from("a b cd");
-		assert_eq!(session.target_text, vec!["a","b","cd"]);
+		let mut session = Session::from("a b cd".to_string());
+
+		assert_eq!(session.target_text, 
+			vec![
+				"a".to_string(),
+				"b".to_string(),
+				"cd".to_string()
+			]);
+
 		session.on_char('a');
 		session.on_space();
 		session.on_char('x');
 		session.on_space();
 		session.on_char('c');
 		session.on_char('d');
-		assert_eq!(session.input, vec!["a".to_string(),"x".to_string(),"cd".to_string()]);
+
+		assert_eq!(session.input, 
+			vec![
+				"a".to_string(),
+				"x".to_string(),
+				"cd".to_string()
+			]);
+
 		assert_eq!(session.state, SessionState::Finished);
 
 		let stats = SessionStats::from(&session);
