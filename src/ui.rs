@@ -4,7 +4,7 @@ use ratatui::{
 	layout::{Constraint, Layout, Rect},
 	style::{Color, Modifier, Style},
 	text::{Span, Line},
-	widgets::{Block, Paragraph},
+	widgets::{Wrap, Block, Paragraph},
 	Frame,
 };
 
@@ -111,10 +111,11 @@ fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
 	let block = Block::bordered()
 		.title_bottom(bottom_title_string);
 
-	let typing_paragraph = Paragraph::new(
-			temp_line.centered()
-		)
-		.block(block);
+	let typing_paragraph = 
+		Paragraph::new(temp_line.centered())
+		.block(block)
+		.wrap(Wrap { trim: true });
+
 	frame.render_widget(typing_paragraph, area);
 }
 
