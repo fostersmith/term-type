@@ -17,6 +17,9 @@ struct Cli {
 	/// text to test on
 	#[argh(option)]
 	text: Option<String>,
+	/// number of random words to generate (incompatible with --text)
+	#[argh(option)]
+	with_word_count: Option<usize>,
 }
 
 fn main() -> io::Result<()> {
@@ -26,9 +29,14 @@ fn main() -> io::Result<()> {
 	let mut app: App;
 	let refresh_wait = Duration::from_millis(250);
 	
-	// Derive Arguments
 	if let Some(target_text) = cli.text.take() {
+		if cli.with_word_count.is_some() {
+			println!("--text is incompatible with --with-word-count!");
+			return Ok(());
+		}
 		app = App::from_str(target_text);
+	} else if let Some(word_count) = cli.with_word_count.take() {
+		app = App::with_word_count(word_count);
 	} else {
 		app = App::default();
 	}

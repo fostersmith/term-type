@@ -56,10 +56,23 @@ fn draw_stats(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
-	let session = &app.active_session;	
+	let session = &mut app.active_session;	
 
 	let mut input_spans: Vec<Span> = vec![];
-	for (i, word) in session.target_text.iter().enumerate() {
+	let target_words = &mut session.target_words;
+	let words_to_render: usize;
+	let input_len = session.input.len();
+
+	match target_words.len() {
+		Some(len) => words_to_render = len,
+		None => words_to_render = input_len + 10,
+	}
+
+	for i in 0..words_to_render {
+		let word = target_words
+			.get_word_at(i)
+			.expect("Ran out of words unexpectedly! 
+			Check WordGenerator implementation");
 		let mut typed_chars_opt: Option<Chars> = None;
 		if i < session.input.len() {
 			typed_chars_opt = Option::from(

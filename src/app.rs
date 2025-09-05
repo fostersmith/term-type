@@ -1,5 +1,89 @@
 use std::time::{Duration, Instant};
 
+pub trait WordGenerator {
+	fn get_word_at(&mut self, i: usize) -> Option<String>;
+	fn get_word_at_frozen(&self, i: usize) -> Option<String>;
+	fn len(&self) -> Option<usize>;
+}
+
+//TODO timed mode is not implemented yet, so not setting size will break the game
+struct RandomWordGenerator {
+	words: Vec<String>,
+	size: Option<usize>,
+}
+impl RandomWordGenerator {
+	pub fn with_size(s: usize) -> Self {
+		let mut generator = Self{ 
+			words: Vec::<String>::with_capacity(s), 
+			size: Some(s) 
+		};
+		for _ in 0..s {
+			generator.words.push(generator.get_random_word());
+		}
+		generator
+	}
+
+	//TODO make this return an actual random english word
+	fn get_random_word(&self) -> String {
+		return "random".to_string();
+	}
+
+	fn add_words(&mut self, n: usize) {
+		self.words.reserve(n);
+		for _ in 0..n {
+			self.words.push(self.get_random_word());
+		}
+	}	
+}
+
+impl WordGenerator for RandomWordGenerator {	
+	fn get_word_at(&mut self, index: usize) -> Option<String> {
+		if index >= self.words.len() {
+			self.add_words(index - self.words.len()+1);
+		}
+
+		return Some(self.words[index].clone());
+	}
+	fn get_word_at_frozen(&self, index: usize) -> Option<String> {
+		if index >= self.words.len() {return None;}
+		else {return Some(self.words[index].clone())}
+	}
+	fn len(&self) -> Option<usize> {
+		match self.size {
+			Some(size) => return Some(size),
+			None => return None,
+		}
+	}
+}
+
+struct StaticWordGenerator {
+	words: Vec<String>,
+}
+impl StaticWordGenerator {
+	pub fn from(s: String) -> Self {
+		let words: Vec<String> = s.split(' ')
+			.map(|s| s.to_string())
+			.collect();
+		
+		Self {
+			words: words,
+		}
+	}
+}
+impl WordGenerator for StaticWordGenerator {
+	fn get_word_at_frozen(&self, index: usize) -> Option<String> {
+		if index >= self.words.len() {return None;}
+		else {return Some(self.words[index].clone())}
+	}
+
+	fn get_word_at(&mut self, index: usize) -> Option<String> {
+		self.get_word_at_frozen(index)
+	}
+	
+	fn len(&self) -> Option<usize> {
+		return Some(self.words.len());
+	}
+}
 #[derive(PartialEq, Debug)]
 enum SessionState {
 	Idle,
@@ -8,16 +92,28 @@ enum SessionState {
 }
 
 pub struct Session {
-	state: 			SessionState,
-	start_time: 	Option<Instant>,
-	duration:		Option<Duration>,
-	pub target_text:Vec<String>,
-	pub input: 		Vec<String>,
+	state: 				SessionState,
+	start_time: 		Option<Instant>,
+	duration:			Option<Duration>,
+	pub target_words:	Box<dyn WordGenerator>,
+	pub target_text:	Vec<String>,
+	pub input: 			Vec<String>,
 }
 
 impl Session {
 	pub fn default() -> Self {
 		Self::from("The quick brown fox jumps over the lazy dog".to_string())
+	}
+
+	pub fn random_with_size(s: usize) -> Self {
+		Self {
+			state: SessionState::Idle,
+			start_time: None,
+			duration: None,
+			target_words: Box::from(RandomWordGenerator::with_size(s)),
+			target_text: vec![],
+			input: vec!["".to_string()],
+		}
 	}
 
 	pub fn from(s: String) -> Self {
@@ -29,6 +125,7 @@ impl Session {
 			state: 			SessionState::Idle,
 			start_time:		None,
 			duration:		None,
+			target_words:	Box::from(StaticWordGenerator::from(s)),
 			target_text: 	target_text,
 			input:			vec!["".to_string()],
 		}
@@ -67,11 +164,11 @@ impl Session {
 		last_word.push(c);
 
 		// check to end the session
-		if self.target_text.len() == input_len {
-			let last_target_word = self.target_text.last()
+		if self.target_words.len() == Some(input_len) {
+			let last_target_word = self.target_words.get_word_at(input_len-1)
 									.expect("empty target text!");
 			
-			if last_target_word == last_word {
+			if last_target_word == *last_word {
 				self.stop_session();
 			}
 		}
@@ -139,13 +236,12 @@ impl Session {
 	pub fn get_attempted_words(&self) -> Vec<String> {
 		let l = self.input.len();
 		let mut words = Vec::with_capacity(l);
-		let target = &self.target_text;
+		let target = &self.target_words;
 
 		for i in 0..l{
-			if i < target.len() {
-				words.push(target[i].clone());
-			} else {
-				words.push("".to_string());
+			match target.get_word_at_frozen(i) {
+				Some(w) => words.push(w),
+				None => break,
 			}
 		}
 
@@ -253,6 +349,7 @@ pub struct App {
 	pub active_session:	Session,
 	pub active_stats:	SessionStats,
 	default_text:		Option<String>,
+	default_word_count: Option<usize>,
 }
 
 impl App {
@@ -263,6 +360,7 @@ impl App {
 			active_stats: SessionStats::default(),
 			quit: false,
 			default_text: None,
+			default_word_count: None,
 		}
 	}
 
@@ -273,6 +371,18 @@ impl App {
 			active_stats: SessionStats::default(),
 			quit: false,
 			default_text: Some(default_text),
+			default_word_count: None,
+		}
+	}
+
+	pub fn with_word_count(word_count: usize) -> Self {
+		Self {
+			state: AppState::Menu,
+			active_session: Session::default(),
+			active_stats: SessionStats::default(),
+			quit: false,
+			default_text: None,
+			default_word_count: Some(word_count),
 		}
 	}
 
@@ -324,12 +434,14 @@ impl App {
 
 	// helpers
 	fn open_typing(&mut self) {
-		match &self.default_text {
-			Some(target_text) => 
-				self.active_session = Session::from(target_text.clone()),
-			None =>
-				self.active_session = Session::default(),
+		if let Some(default_text) = &self.default_text {
+			self.active_session = Session::from(default_text.clone());
+		} else if let Some(default_count) = self.default_word_count {
+			self.active_session = Session::random_with_size(default_count);
+		} else {
+			self.active_session = Session::default();
 		}
+		
 		self.state = AppState::Typing;
 	}
 	fn open_stats(&mut self) {
@@ -425,12 +537,12 @@ mod app_tests {
 	fn test_3() {
 		let mut session = Session::from("a b cd".to_string());
 
-		assert_eq!(session.target_text, 
-			vec![
-				"a".to_string(),
-				"b".to_string(),
-				"cd".to_string()
-			]);
+		assert_eq!(session.target_words.get_word_at(0),
+			Some("a".to_string()));
+		assert_eq!(session.target_words.get_word_at(1),
+			Some("b".to_string()));
+		assert_eq!(session.target_words.get_word_at(2),
+			Some("cd".to_string()));
 
 		session.on_char('a');
 		session.on_space();
