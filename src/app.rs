@@ -274,6 +274,9 @@ impl SessionStats {
 		
 		let mut word_total = 0 as i32;
 		let mut word_corr = 0 as i32;
+		
+		// used to calculate wpm
+		let mut correct_word_char_count = 0;
 
 		let input_words = session.get_input_words();
 		let attempted_words = session.get_attempted_words();
@@ -286,18 +289,28 @@ impl SessionStats {
 			char_total += ttl;
 			if is_correct {
 				word_corr += 1;
+				correct_word_char_count += ttl;
 			}
 			word_total += 1;
 			i += 1;
 		}
 		
+		// account for spaces
+		// TODO move this into main loop
+		correct_word_char_count += word_corr-1; 
+		char_corr += word_corr-1;
+		char_total += word_corr-1;
+		
 		let duration_s = session.get_final_duration_s()
 			.expect("Calculating stats on a session without duration");
 		let duration_min: f64 = duration_s / (60 as f64);
 		
-		let wpm = (word_corr as f32) / (duration_min as f32);
-		let wpm_raw = (word_total as f32) / (duration_min as f32);
+		// let wpm = (word_corr as f32) / (duration_min as f32);
+		// let wpm_raw = (word_total as f32) / (duration_min as f32);
 		
+		let wpm = (correct_word_char_count as f32) / (5.0 * duration_min as f32);
+		let wpm_raw = (char_total as f32) / (5.0 * duration_min as f32);
+
 		let acc = (char_corr as f32) / (char_total as f32);
 		
 		Self {
@@ -562,14 +575,22 @@ mod app_tests {
 
 		let stats = SessionStats::from(&session);
 		
-		let target_acc: f32 = 3.0 / 4.0;
+		// MonkeyType will yield 2/3 accuracy in this situation
+		let target_acc: f32 = 4.0 / 5.0;
 
 		let acc_difference = (stats.acc - target_acc).abs();
-		assert!(acc_difference < 0.0001, "Accuracy was wrong ({} vs {})", stats.acc, target_acc);
-
-		assert_eq!(stats.char_corr, 3);
-		assert_eq!(stats.char_total, 4);
+		assert!(
+			acc_difference < 0.0001, "Accuracy was wrong ({} vs {})", 
+			stats.acc, 
+			target_acc
+		);
+		
+		// These are based on results from MonkeyType
+		assert_eq!(stats.char_corr, 4);
+		assert_eq!(stats.char_total, 5);
 		assert_eq!(stats.word_corr, 2);
 		assert_eq!(stats.word_total, 3);
 	}
+
+	// TODO tests for wpm, wpm_raw
 }
