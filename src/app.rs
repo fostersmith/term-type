@@ -1,4 +1,5 @@
 use std::time::{Duration, Instant};
+use random_word::Lang;
 
 pub trait WordGenerator {
 	fn get_word_at(&mut self, i: usize) -> Option<String>;
@@ -23,9 +24,8 @@ impl RandomWordGenerator {
 		generator
 	}
 
-	//TODO make this return an actual random english word
 	fn get_random_word(&self) -> String {
-		return "random".to_string();
+		return random_word::get(Lang::En).to_string();
 	}
 
 	fn add_words(&mut self, n: usize) {
