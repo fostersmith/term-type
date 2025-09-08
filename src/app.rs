@@ -123,7 +123,8 @@ pub struct Session {
 
 impl Session {
 	pub fn default() -> Self {
-		Self::from("The quick brown fox jumps over the lazy dog".to_string())
+		//Self::from("The quick brown fox jumps over the lazy dog".to_string())
+		Self::random_with_size(25)
 	}
 
 	pub fn random_with_size(s: usize) -> Self {
