@@ -1,5 +1,8 @@
 use std::time::{Duration, Instant};
-use random_word::Lang;
+use std::fs;
+use rand::prelude::*;
+
+const WORD_LIST_FILE: &str="src/english-1k.txt";
 
 pub trait WordGenerator {
 	fn get_word_at(&mut self, i: usize) -> Option<String>;
@@ -11,12 +14,14 @@ pub trait WordGenerator {
 struct RandomWordGenerator {
 	words: Vec<String>,
 	size: Option<usize>,
+	word_list: Vec<String>,
 }
 impl RandomWordGenerator {
 	pub fn with_size(s: usize) -> Self {
 		let mut generator = Self{ 
 			words: Vec::<String>::with_capacity(s), 
-			size: Some(s) 
+			size: Some(s),
+			word_list: Self::load_word_list(WORD_LIST_FILE),
 		};
 		for _ in 0..s {
 			generator.words.push(generator.get_random_word());
@@ -24,8 +29,24 @@ impl RandomWordGenerator {
 		generator
 	}
 
+	fn load_word_list(filepath: &str) -> Vec<String> {
+		let word_str = fs::read_to_string(filepath)
+			.expect(
+				format!("Could read word list file '{}'", filepath).as_str()
+			);
+		
+		let word_list: Vec<String> = word_str.split('\n')
+			.map(|s| s.to_string())
+			.collect();
+		
+		word_list
+	}
+
 	fn get_random_word(&self) -> String {
-		return random_word::get(Lang::En).to_string();
+		let mut rng = rand::rng();
+		return self.word_list.choose(&mut rng)
+			.expect("expected to return a random word")
+			.to_string();
 	}
 
 	fn add_words(&mut self, n: usize) {
