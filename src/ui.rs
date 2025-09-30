@@ -56,6 +56,9 @@ fn draw_stats(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
+	let cursor_word = app.active_session.get_cursor_word();
+	let cursor_char = app.active_session.get_cursor_char();
+
 	let session = &mut app.active_session;	
 
 	let mut input_spans: Vec<Span> = vec![];
@@ -63,12 +66,16 @@ fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
 	let words_to_render: usize;
 	let input_len = session.input.len();
 
+	let mut first_untyped_char = true;
+
 	match target_words.len() {
 		Some(len) => words_to_render = len,
 		None => words_to_render = input_len + 10,
 	}
-
+		
 	for i in 0..words_to_render {
+		let mut char_i = 0;
+
 		let word = target_words
 			.get_word_at(i)
 			.expect("Ran out of words unexpectedly! 
@@ -87,7 +94,7 @@ fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
 				typed_char_opt = typed_chars.next();			
 			}
 
-			let style: Style;
+			let mut style: Style;
 			if typed_char_opt.is_none() {
 				style = Style::default();
 			} else if typed_char_opt.expect("") == ch {
@@ -98,8 +105,15 @@ fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
 					.add_modifier(Modifier::BOLD)
 					.add_modifier(Modifier::CROSSED_OUT);
 			}
+
+			if (i==cursor_word && char_i==cursor_char) {
+				style = style.bg(Color::White).fg(Color::Black);
+			}			
+
 			let s: Span = Span::styled(ch.to_string(), style);
 			input_spans.push(s);
+
+			char_i += 1;
 		}
 		// Overtyped chars
 		if let Some(typed_chars) = typed_chars_opt.as_mut() {
@@ -109,8 +123,15 @@ fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
 					.add_modifier(Modifier::ITALIC)
 			);
 			input_spans.push(overtyped_span);
+			char_i += overtyped_str.len();
 		}
-		input_spans.push(Span::from(" "));
+
+		if (i==cursor_word && char_i == cursor_char){
+			input_spans.push(Span::styled(" ", 
+				Style::default().bg(Color::White)));
+		} else {
+			input_spans.push(Span::from(" "));
+		}
 	}
 
 	let mut age_opt = session.get_age_s();

@@ -54,7 +54,7 @@ impl RandomWordGenerator {
 		for _ in 0..n {
 			self.words.push(self.get_random_word());
 		}
-	}	
+	}
 }
 
 impl WordGenerator for RandomWordGenerator {	
@@ -268,6 +268,15 @@ impl Session {
 		}
 
 		words
+	}
+
+	pub fn get_cursor_word(&self) -> usize {
+		return self.input.len()-1;
+	}
+
+	pub fn get_cursor_char(&self) -> usize {
+		let last_word = self.input.last().expect("no words in input!");
+		return last_word.len();
 	}
 }
 
