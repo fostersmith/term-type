@@ -66,8 +66,6 @@ fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
 	let words_to_render: usize;
 	let input_len = session.input.len();
 
-	let mut first_untyped_char = true;
-
 	match target_words.len() {
 		Some(len) => words_to_render = len,
 		None => words_to_render = input_len + 10,
@@ -106,7 +104,7 @@ fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
 					.add_modifier(Modifier::CROSSED_OUT);
 			}
 
-			if (i==cursor_word && char_i==cursor_char) {
+			if i==cursor_word && char_i==cursor_char {
 				style = style.bg(Color::White).fg(Color::Black);
 			}			
 
@@ -126,7 +124,7 @@ fn draw_typing(frame: &mut Frame, app: &mut App, area: Rect) {
 			char_i += overtyped_str.len();
 		}
 
-		if (i==cursor_word && char_i == cursor_char){
+		if i==cursor_word && char_i == cursor_char {
 			input_spans.push(Span::styled(" ", 
 				Style::default().bg(Color::White)));
 		} else {
